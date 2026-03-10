@@ -1,0 +1,41 @@
+{
+  "name": "effector-graph",
+  "version": "0.1.0",
+  "description": "Interactive visualization of the AI capability graph",
+  "main": "src/index.js",
+  "bin": {
+    "effector-graph": "bin/effector-graph.js"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server.js",
+    "build": "node scripts/build.js",
+    "test": "node --test tests/",
+    "lint": "node --check src/*.js"
+  },
+  "keywords": [
+    "effector",
+    "visualization",
+    "graph",
+    "capability-graph",
+    "ai-agent",
+    "d3",
+    "interactive"
+  ],
+  "author": "effectorHQ Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effectorHQ/effector-graph.git"
+  },
+  "homepage": "https://github.com/effectorHQ/effector-graph",
+  "bugs": {
+    "url": "https://github.com/effectorHQ/effector-graph/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "effector-types": "^0.1.0"
+  }
+}
