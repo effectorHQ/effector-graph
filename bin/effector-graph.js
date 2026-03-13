@@ -15,12 +15,14 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { buildGraph, findPaths, queryByType } from '../src/core/graph.js';
 import { renderSVG, renderPipelineSVG } from '../src/renderers/svg.js';
+import { loadRegistry } from '../src/registry.js';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
     version: { type: 'boolean', short: 'v' },
+    registry: { type: 'string', short: 'r', default: '.' },
     input: { type: 'string' },
     output: { type: 'string' },
     format: { type: 'string', short: 'f', default: 'svg' },
@@ -38,24 +40,54 @@ if (values.help || positionals.length === 0) {
 effector-graph — Capability graph visualization
 
 Commands:
-  serve                     Launch interactive web UI (coming soon)
+  serve                     Launch interactive web UI (coming in v0.2)
   render <pipeline.yml>     Render pipeline as SVG/PNG/HTML
   query                     Search by interface type (--input, --output)
   path <source> <target>    Find composition paths between Effectors
   export                    Export full graph (--format json|svg)
 
 Options:
-  --input <type>      Filter by input type
-  --output <type>     Filter by output type
-  -f, --format <fmt>  Output format: svg, png, html, json (default: svg)
-  --trust             Show trust overlay (signed/unsigned/audited)
-  -h, --help          Show this help
-  -v, --version       Show version
+  -r, --registry <dir>  Directory to scan for effector.toml files (default: .)
+  --input <type>        Filter by input type
+  --output <type>       Filter by output type
+  -f, --format <fmt>    Output format: svg, png, html, json (default: svg)
+  --trust               Show trust overlay (signed/unsigned/audited)
+  -h, --help            Show this help
+  -v, --version         Show version
 `);
   process.exit(0);
 }
 
 const [command, ...args] = positionals;
+
+// Demo data used as fallback when no registry is provided
+const DEMO_EFFECTORS = [
+  { name: 'code-review', version: '1.2.0', type: 'skill', interface: { input: 'CodeDiff', output: 'ReviewReport' } },
+  { name: 'security-scan', version: '2.0.0', type: 'skill', interface: { input: 'CodeDiff', output: 'SecurityReport' } },
+  { name: 'aggregate-report', version: '1.0.0', type: 'workflow', interface: { input: 'ReviewReport', output: 'AggregateReport' } },
+  { name: 'slack-notify', version: '0.5.0', type: 'skill', interface: { input: 'AggregateReport', output: 'Notification' } },
+];
+
+/**
+ * Load effectors from registry or fall back to demo data.
+ */
+function loadEffectors() {
+  const registryDir = values.registry;
+  const effectors = loadRegistry(registryDir);
+
+  if (effectors.length > 0) {
+    console.error(`Loaded ${effectors.length} effector(s) from registry`);
+    return effectors;
+  }
+
+  if (registryDir !== '.') {
+    console.error(`Warning: No effector.toml files found in "${registryDir}"`);
+    return [];
+  }
+
+  // Fall back to demo data when no --registry flag and no local effectors
+  return DEMO_EFFECTORS;
+}
 
 async function main() {
   switch (command) {
@@ -67,43 +99,85 @@ async function main() {
     case 'render': {
       const pipelinePath = args[0];
       if (!pipelinePath) {
-        console.error('Usage: effector-graph render <pipeline.yml>');
+        console.error('Usage: effector-graph render <pipeline.yml> [--registry <dir>]');
         process.exit(1);
       }
-      // For now, render a simple demo SVG
-      const demoGraph = buildGraph([
-        { name: 'code-review', version: '1.2.0', type: 'skill', interface: { input: 'CodeDiff', output: 'ReviewReport' } },
-        { name: 'security-scan', version: '2.0.0', type: 'skill', interface: { input: 'CodeDiff', output: 'SecurityReport' } },
-        { name: 'aggregate-report', version: '1.0.0', type: 'workflow', interface: { input: 'ReviewReport', output: 'AggregateReport' } },
-        { name: 'slack-notify', version: '0.5.0', type: 'skill', interface: { input: 'AggregateReport', output: 'Notification' } },
-      ]);
-      const svg = renderSVG(demoGraph, { showTrust: values.trust });
+      const effectors = loadEffectors();
+      const graph = buildGraph(effectors);
+      const svg = renderSVG(graph, { showTrust: values.trust });
       const outPath = pipelinePath.replace(/\.\w+$/, '.svg');
       writeFileSync(outPath, svg);
-      console.log(`Rendered to ${outPath}`);
+      console.log(`Rendered to ${outPath} (${graph.stats.nodeCount} nodes, ${graph.stats.edgeCount} edges)`);
       process.exit(0);
     }
 
     case 'query': {
-      console.log(`Querying for: input=${values.input || '*'}, output=${values.output || '*'}`);
-      // In production, this would query a real registry
-      console.log('Registry query is coming in v0.3. Connect to effector-types for type-based search.');
+      const effectors = loadEffectors();
+      if (effectors.length === 0) {
+        console.error('No effectors found. Use --registry <dir> to point to Effector packages.');
+        process.exit(1);
+      }
+      const graph = buildGraph(effectors);
+      const results = queryByType(graph, {
+        input: values.input || undefined,
+        output: values.output || undefined,
+      });
+
+      console.log(`\nFound ${results.length} matching effector(s):\n`);
+      for (const node of results) {
+        const inputLabel = node.interface.input || '*';
+        const outputLabel = node.interface.output || '*';
+        console.log(`  ${node.name}@${node.version}  (${inputLabel} -> ${outputLabel})`);
+      }
+      console.log('');
       process.exit(0);
     }
 
     case 'path': {
       const [source, target] = args;
       if (!source || !target) {
-        console.error('Usage: effector-graph path <source> <target>');
+        console.error('Usage: effector-graph path <source> <target> [--registry <dir>]');
         process.exit(1);
       }
-      console.log(`Finding paths from ${source} to ${target}...`);
-      console.log('Path finding requires a loaded graph. Coming in v0.3.');
+      const effectors = loadEffectors();
+      if (effectors.length === 0) {
+        console.error('No effectors found. Use --registry <dir>.');
+        process.exit(1);
+      }
+      const graph = buildGraph(effectors);
+      const paths = findPaths(graph, source, target);
+
+      if (paths.length === 0) {
+        console.log(`\nNo composition paths found from "${source}" to "${target}".`);
+        console.log('Hint: source and target should be in the format "name@version".\n');
+      } else {
+        console.log(`\nFound ${paths.length} path(s) from "${source}" to "${target}":\n`);
+        for (let i = 0; i < paths.length; i++) {
+          console.log(`  ${i + 1}. ${paths[i].join(' -> ')}`);
+        }
+        console.log('');
+      }
       process.exit(0);
     }
 
     case 'export': {
-      console.log('Graph export is coming in v0.3.');
+      const effectors = loadEffectors();
+      if (effectors.length === 0) {
+        console.error('No effectors found. Use --registry <dir>.');
+        process.exit(1);
+      }
+      const graph = buildGraph(effectors);
+      const format = values.format || 'json';
+
+      if (format === 'json') {
+        console.log(JSON.stringify(graph, null, 2));
+      } else if (format === 'svg') {
+        const svg = renderSVG(graph, { showTrust: values.trust });
+        console.log(svg);
+      } else {
+        console.error(`Unknown format: ${format}. Supported: json, svg`);
+        process.exit(1);
+      }
       process.exit(0);
     }
 
