@@ -13,7 +13,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { buildGraph, findPaths, queryByType } from '../src/core/graph.js';
+import { buildGraph, findPaths, findPathByType, queryByType } from '../src/core/graph.js';
 import { renderSVG, renderPipelineSVG } from '../src/renderers/svg.js';
 import { loadRegistry } from '../src/registry.js';
 
@@ -27,6 +27,8 @@ const { values, positionals } = parseArgs({
     output: { type: 'string' },
     format: { type: 'string', short: 'f', default: 'svg' },
     trust: { type: 'boolean', default: false },
+    from: { type: 'string' },
+    to: { type: 'string' },
   },
 });
 
@@ -44,6 +46,7 @@ Commands:
   render <pipeline.yml>     Render pipeline as SVG/PNG/HTML
   query                     Search by interface type (--input, --output)
   path <source> <target>    Find composition paths between Effectors
+  find-path                 Find paths by type: --from <type> --to <type>
   export                    Export full graph (--format json|svg)
 
 Options:
@@ -154,6 +157,43 @@ async function main() {
         console.log(`\nFound ${paths.length} path(s) from "${source}" to "${target}":\n`);
         for (let i = 0; i < paths.length; i++) {
           console.log(`  ${i + 1}. ${paths[i].join(' -> ')}`);
+        }
+        console.log('');
+      }
+      process.exit(0);
+    }
+
+    case 'find-path': {
+      const fromType = values.from;
+      const toType = values.to;
+      if (!fromType || !toType) {
+        console.error('Usage: effector-graph find-path --from <type> --to <type> [--registry <dir>]');
+        process.exit(1);
+      }
+      const effectors = loadEffectors();
+      if (effectors.length === 0) {
+        console.error('No effectors found. Use --registry <dir>.');
+        process.exit(1);
+      }
+      const graph = buildGraph(effectors);
+      const typePaths = findPathByType(graph, fromType, toType);
+
+      if (typePaths.length === 0) {
+        console.log(`\nNo composition paths found from ${fromType} to ${toType}.`);
+        console.log('Available types:');
+        const types = new Set();
+        for (const n of graph.nodes) {
+          if (n.interface.input) types.add(n.interface.input);
+          if (n.interface.output) types.add(n.interface.output);
+        }
+        for (const t of types) console.log(`  ${t}`);
+        console.log('');
+      } else {
+        console.log(`\nFound ${typePaths.length} path(s) from ${fromType} to ${toType}:\n`);
+        for (let i = 0; i < typePaths.length; i++) {
+          const p = typePaths[i];
+          const chain = p.path.map(s => `${s.id} (${s.input}→${s.output})`).join(' → ');
+          console.log(`  ${i + 1}. ${chain}  [weight: ${p.weight.toFixed(2)}]`);
         }
         console.log('');
       }

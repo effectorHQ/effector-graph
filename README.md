@@ -189,7 +189,7 @@ effector-graph
 
 ## Roadmap
 
-- [ ] **v0.1** — CLI graph queries, static SVG rendering, pipeline visualization
+- [x] **v0.1** — CLI graph queries (`query`, `path`, `export`), registry loader, type-checker backed by effector-types/types.json
 - [ ] **v0.2** — Interactive web UI with force-directed layout
 - [ ] **v0.3** — Trust overlay, cost heatmap, permission aggregation
 - [ ] **v0.4** — Embeddable widget, registry dashboard

@@ -3,6 +3,8 @@
  * Nodes are capabilities, edges are composition relationships.
  */
 
+import { isTypeCompatible } from './type-checker.js';
+
 /**
  * Build a capability graph from a collection of typed Effectors.
  * @param {Array<EffectorDef>} effectors - Collection of typed Effector definitions
@@ -70,39 +72,8 @@ export function buildGraph(effectors) {
   };
 }
 
-/**
- * Check structural type compatibility.
- * @returns {{ precision: number } | null}
- */
-function isTypeCompatible(outputType, inputType) {
-  // String-based type names
-  if (typeof outputType === 'string' && typeof inputType === 'string') {
-    if (outputType === inputType) return { precision: 1.0 };
-    // Wildcard matching (e.g., "*Report" matches "ReviewReport")
-    if (inputType.includes('*')) {
-      const pattern = inputType.replace('*', '');
-      if (outputType.includes(pattern)) return { precision: 0.8 };
-    }
-    // Suffix matching (e.g., "SecurityReport" ends with "Report")
-    if (outputType.endsWith(inputType.replace('*', ''))) return { precision: 0.6 };
-    return null;
-  }
-
-  // Object-based structural comparison
-  if (typeof outputType === 'object' && typeof inputType === 'object') {
-    const inputKeys = Object.keys(inputType);
-    const outputKeys = Object.keys(outputType);
-    const matchedKeys = inputKeys.filter((k) => outputKeys.includes(k));
-
-    if (matchedKeys.length === inputKeys.length) {
-      const precision = matchedKeys.length / Math.max(outputKeys.length, 1);
-      return { precision };
-    }
-    return null;
-  }
-
-  return null;
-}
+// isTypeCompatible is imported from ./type-checker.js
+// Supports: exact match (1.0), alias (0.95), subtype (0.9), wildcard (0.8)
 
 /**
  * Find all valid composition paths between two Effectors.
@@ -134,6 +105,78 @@ export function findPaths(graph, sourceId, targetId, maxDepth = 5) {
 
   dfs(sourceId, [sourceId]);
   return paths;
+}
+
+/**
+ * Find composition paths between two types.
+ *
+ * Given an input type (what you have) and an output type (what you want),
+ * find all chains of effectors that transform one into the other.
+ *
+ * Example: findPathByType(graph, 'ImageRef', 'Markdown')
+ * → Finds: image-ocr (ImageRef→String) → summarize (String→Markdown)
+ *
+ * @param {Graph} graph
+ * @param {string} fromType - Input type you have
+ * @param {string} toType - Output type you want
+ * @param {number} maxDepth - Maximum chain length
+ * @returns {Array<{path: Array<{id: string, input: string, output: string}>, weight: number}>}
+ */
+export function findPathByType(graph, fromType, toType, maxDepth = 5) {
+  const results = [];
+
+  // Find nodes that accept fromType as input
+  const startNodes = graph.nodes.filter(n => {
+    if (!n.interface.input) return false;
+    return isTypeCompatible(fromType, n.interface.input) !== null;
+  });
+
+  // Find node IDs that produce toType as output
+  const endNodeIds = new Set(
+    graph.nodes
+      .filter(n => {
+        if (!n.interface.output) return false;
+        return isTypeCompatible(n.interface.output, toType) !== null;
+      })
+      .map(n => n.id)
+  );
+
+  for (const start of startNodes) {
+    const visited = new Set();
+
+    function dfs(currentId, chain, totalWeight) {
+      if (chain.length > maxDepth) return;
+
+      if (endNodeIds.has(currentId) && chain.length > 0) {
+        results.push({
+          path: chain.map(id => {
+            const node = graph.nodes.find(n => n.id === id);
+            return {
+              id: node.id,
+              input: node.interface.input || '?',
+              output: node.interface.output || '?',
+            };
+          }),
+          weight: totalWeight / chain.length,
+        });
+      }
+
+      visited.add(currentId);
+      const outEdges = graph.edges.filter(
+        e => e.source === currentId && !visited.has(e.target) && e.type === 'sequential'
+      );
+
+      for (const edge of outEdges) {
+        dfs(edge.target, [...chain, edge.target], totalWeight + edge.weight);
+      }
+      visited.delete(currentId);
+    }
+
+    dfs(start.id, [start.id], 0);
+  }
+
+  results.sort((a, b) => b.weight - a.weight || a.path.length - b.path.length);
+  return results;
 }
 
 /**
