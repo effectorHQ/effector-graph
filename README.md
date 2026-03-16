@@ -1,6 +1,7 @@
 # effector-graph
 
 [![npm version](https://img.shields.io/badge/npm-effector--graph-E03E3E.svg)](https://www.npmjs.com/package/effector-graph)
+[![CI](https://github.com/effectorHQ/effector-graph/actions/workflows/test.yml/badge.svg)](https://github.com/effectorHQ/effector-graph/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#)
 
@@ -45,6 +46,20 @@ Every typed Effector declares an interface: what it accepts, what it produces, w
 ```
 
 This isn't a static diagram. It's a live, queryable visualization of what your agents **can** do and how their capabilities connect.
+
+## Install
+
+```bash
+npm install effector-graph
+```
+
+You can also use the CLI directly without installing globally:
+
+```bash
+npx effector-graph ./skills
+```
+
+See the published package on npm: **https://www.npmjs.com/package/effector-graph**
 
 ## Why Visualize the Capability Graph
 
