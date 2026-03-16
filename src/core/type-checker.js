@@ -5,4 +5,4 @@
  * Re-exports isTypeCompatible with precision scores for graph edge weighting.
  */
 
-export { isTypeCompatible } from '../../../effector-core/src/type-checker.js';
+export { isTypeCompatible } from '@effectorhq/core/types';

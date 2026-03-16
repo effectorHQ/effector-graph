@@ -8,7 +8,7 @@
 import {
   parseEffectorToml,
   loadRegistryAsArray,
-} from '../../effector-core/src/toml-parser.js';
+} from '@effectorhq/core/toml';
 
 /**
  * Scan a directory for effector.toml files and return an array.
