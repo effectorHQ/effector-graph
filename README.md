@@ -80,7 +80,7 @@ Research supports this. The GAP framework (NeurIPS 2025, [arXiv:2510.25320](http
 ### Interactive Web UI
 
 ```bash
-npx effector-graph serve
+npx @effectorhq/graph serve
 
   ✓ Loaded 847 typed Effectors from registry
   ✓ Graph: 847 nodes, 3,241 composition edges
@@ -101,9 +101,9 @@ Opens a browser-based visualization with:
 Render a specific pipeline from `effector-compose`:
 
 ```bash
-npx effector-graph render ./pipeline.effector.yml --format svg
-npx effector-graph render ./pipeline.effector.yml --format png
-npx effector-graph render ./pipeline.effector.yml --format html  # interactive
+npx @effectorhq/graph render ./pipeline.effector.yml --format svg
+npx @effectorhq/graph render ./pipeline.effector.yml --format png
+npx @effectorhq/graph render ./pipeline.effector.yml --format html  # interactive
 ```
 
 ### Embeddable Widget
@@ -125,16 +125,16 @@ For terminal-first workflows:
 
 ```bash
 # Show all Effectors that accept CodeDiff
-npx effector-graph query --input CodeDiff
+npx @effectorhq/graph query --input CodeDiff
 
 # Show composition paths from code-review to slack-notify
-npx effector-graph path code-review@1.2.0 slack-notify@0.5.0
+npx @effectorhq/graph path code-review@1.2.0 slack-notify@0.5.0
 
 # Show the dependency tree of a pipeline
-npx effector-graph tree ./pipeline.effector.yml
+npx @effectorhq/graph tree ./pipeline.effector.yml
 
 # Export the full graph as JSON (for custom visualization)
-npx effector-graph export --format json > graph.json
+npx @effectorhq/graph export --format json > graph.json
 ```
 
 ## Visualization Modes
@@ -164,7 +164,7 @@ Focused view for a single pipeline. Shows:
 Compare two versions of a pipeline or two competing pipeline designs:
 
 ```bash
-npx effector-graph diff pipeline-v1.yml pipeline-v2.yml
+npx @effectorhq/graph diff pipeline-v1.yml pipeline-v2.yml
 ```
 
 Highlights: added steps, removed steps, changed types, cost difference, permission changes.
@@ -174,7 +174,7 @@ Highlights: added steps, removed steps, changed types, cost difference, permissi
 Overview of a capability registry:
 
 ```bash
-npx effector-graph dashboard --registry https://registry.effectorhq.dev
+npx @effectorhq/graph dashboard --registry https://registry.effectorhq.dev
 ```
 
 Shows: type distribution, most-composed Effectors, trust coverage, cost distribution, growth trends.
