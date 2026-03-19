@@ -101,9 +101,8 @@ Opens a browser-based visualization with:
 Render a specific pipeline from `effector-compose`:
 
 ```bash
-npx @effectorhq/graph render ./pipeline.effector.yml --format svg
-npx @effectorhq/graph render ./pipeline.effector.yml --format png
-npx @effectorhq/graph render ./pipeline.effector.yml --format html  # interactive
+npx @effectorhq/graph render ./pipeline.effector.yml
+# Produces: ./pipeline.effector.svg
 ```
 
 ### Embeddable Widget
@@ -129,9 +128,6 @@ npx @effectorhq/graph query --input CodeDiff
 
 # Show composition paths from code-review to slack-notify
 npx @effectorhq/graph path code-review@1.2.0 slack-notify@0.5.0
-
-# Show the dependency tree of a pipeline
-npx @effectorhq/graph tree ./pipeline.effector.yml
 
 # Export the full graph as JSON (for custom visualization)
 npx @effectorhq/graph export --format json > graph.json
@@ -198,7 +194,7 @@ effector-graph
 │   ├── components/    # Explorer, Pipeline, Diff, Dashboard views
 │   └── widget.js      # Embeddable web component
 ├── cli/               # Command-line interface
-│   └── index.js       # CLI commands (serve, render, query, path, tree, export)
+│   └── index.js       # CLI commands (serve, render, query, path, export)
 └── integrations/      # IDE and tool integrations
     ├── vscode.js      # VS Code extension API
     └── compose.js     # Integration with effector-compose
