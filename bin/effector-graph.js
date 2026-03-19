@@ -33,7 +33,8 @@ const { values, positionals } = parseArgs({
 });
 
 if (values.version) {
-  console.log('effector-graph 0.1.0');
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
+  console.log(`effector-graph ${pkg.version}`);
   process.exit(0);
 }
 
