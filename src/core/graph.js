@@ -23,6 +23,7 @@ export function buildGraph(effectors) {
       version: eff.version,
       type: eff.type,
       interface: eff.interface || {},
+      compose: eff.compose || {},
       trust: eff.trust || {},
       resources: eff.resources || {},
     });

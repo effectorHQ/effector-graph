@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { buildGraph, findPaths, findPathByType, queryByType } from '../src/core/graph.js';
 import { renderSVG, renderPipelineSVG } from '../src/renderers/svg.js';
+import { renderSpectrum, wrapInHTML } from '../src/renderers/spectrum.js';
 import { loadRegistry } from '../src/registry.js';
 
 const { values, positionals } = parseArgs({
@@ -43,6 +44,7 @@ if (values.help || positionals.length === 0) {
 effector-graph — Capability graph visualization
 
 Commands:
+  spectrum [dir]            Render capability spectrum (all 36+ types)
   serve                     Launch interactive web UI (coming in v0.2)
   render <pipeline.yml>     Render pipeline as SVG/PNG/HTML
   query                     Search by interface type (--input, --output)
@@ -95,6 +97,36 @@ function loadEffectors() {
 
 async function main() {
   switch (command) {
+    case 'spectrum': {
+      // Optionally load a tool definition to highlight
+      const toolDir = args[0];
+      let highlight = {};
+      if (toolDir) {
+        try {
+          const { parseEffectorToml } = await import('@effectorhq/core/toml');
+          const tomlContent = readFileSync(`${toolDir}/effector.toml`, 'utf-8');
+          const def = parseEffectorToml(tomlContent);
+          highlight = {
+            input: def.interface?.input,
+            output: def.interface?.output,
+            context: def.interface?.context || [],
+          };
+        } catch {
+          console.error(`Warning: Could not load effector.toml from "${toolDir}"`);
+        }
+      }
+
+      const format = values.format || 'html';
+      const svg = renderSpectrum({ highlight });
+
+      if (format === 'html') {
+        console.log(wrapInHTML(svg));
+      } else {
+        console.log(svg);
+      }
+      process.exit(0);
+    }
+
     case 'serve':
       console.log('Interactive web UI is coming in v0.2.');
       console.log('For now, use "render" to generate static visualizations.');

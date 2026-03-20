@@ -1,16 +1,28 @@
 # Changelog
 
-## v1.0.0 — 2026-03-19
+All notable changes to this project will be documented in this file.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) · [Semantic Versioning](https://semver.org/)
 
-First stable release. Package scoped to `@effectorhq/graph`.
+---
+
+## [1.0.0] — 2026-03-19
+
+First stable release. Published as `@effectorhq/graph`.
 
 ### Added
-- **Graph queries** — `npx @effectorhq/graph query --input CodeDiff` finds all compatible effectors
-- **Path finding** — `npx @effectorhq/graph path A@v B@v` finds composition paths between two effectors
-- **Export** — `npx @effectorhq/graph export --format json` for custom visualization
-- **Registry loader** — loads effector definitions from local directories
-- **Type-checked edges** — uses `@effectorhq/core` type compatibility for edge construction
+- **Capability graph** — builds a directed graph of effector definitions with typed edges (edge exists when output type of A is compatible with input type of B)
+- **CLI subcommands**:
+  - `query --input <type>` — find all effectors compatible with a given input type
+  - `query --output <type>` — find all effectors that produce a given output type
+  - `path <effectorA> <effectorB>` — find composition paths between two effectors
+  - `export --format json` — export full graph as JSON for custom visualization
+- **Type-checked edges** — uses `@effectorhq/core` `checkTypeCompatibility()` for edge construction
+- **Registry loader** — discovers effector definitions from local directories
+- 12 tests
 
 ### Changed
-- Cross-repo imports replaced with `@effectorhq/core` package specifiers
+- All cross-repo relative imports replaced with `@effectorhq/core ^1.0.0` package specifier
 - Package name: `effector-graph` → `@effectorhq/graph`
+- `dependencies` updated from `file:../effector-core` → `"@effectorhq/core": "^1.0.0"`
+- `files` field: `["src/", "bin/", "README.md", "LICENSE"]`
+- `prepublishOnly` script added
