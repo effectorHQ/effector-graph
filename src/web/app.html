@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>effector-graph | Capability Graph Explorer</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root {
+    --bg: #0F0F0F; --surface: #1A1A1A; --surface2: #222; --border: #2A2A2A;
+    --red: #E03E3E; --orange: #F27A3A; --text: #F5F0EB; --muted: #888;
+    --green: #4CAF50; --blue: #2196F3; --yellow: #FFC107; --purple: #9C27B0;
+    --cyan: #22D3EE; --pink: #F472B6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  header h1 { font-size: 16px; font-weight: 700; color: var(--red); }
+  header h1 span { color: var(--orange); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; margin-left: 24px; }
+  .tab { padding: 6px 16px; background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 13px; border-radius: 6px 6px 0 0; transition: all 0.15s; }
+  .tab:hover { color: var(--text); background: var(--surface2); }
+  .tab.active { color: var(--text); background: var(--bg); font-weight: 600; }
+
+  /* Controls bar */
+  .controls { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .controls input[type="text"] { padding: 5px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; width: 200px; }
+  .controls select { padding: 5px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 12px; }
+  .controls label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .controls input[type="checkbox"] { accent-color: var(--red); }
+  .badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; background: var(--surface2); color: var(--muted); }
+
+  /* Main content area */
+  main { flex: 1; position: relative; overflow: hidden; }
+  .view { position: absolute; inset: 0; display: none; }
+  .view.active { display: flex; }
+
+  /* Explorer view */
+  #explorer-view { flex-direction: column; }
+  #explorer-view svg { flex: 1; }
+  .tooltip { position: fixed; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; pointer-events: none; z-index: 100; max-width: 280px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  .tooltip .tt-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .tooltip .tt-type { color: var(--muted); margin-bottom: 4px; }
+  .tooltip .tt-interface { color: var(--orange); }
+  .tooltip .tt-trust { margin-top: 4px; }
+
+  /* Detail panel */
+  .detail-panel { position: absolute; right: 0; top: 0; bottom: 0; width: 300px; background: var(--surface); border-left: 1px solid var(--border); padding: 20px; overflow-y: auto; display: none; }
+  .detail-panel.open { display: block; }
+  .detail-panel h3 { font-size: 16px; margin-bottom: 12px; }
+  .detail-panel .field { margin-bottom: 8px; }
+  .detail-panel .field-label { font-size: 11px; color: var(--muted); text-transform: uppercase; }
+  .detail-panel .field-value { font-size: 13px; }
+  .detail-close { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; }
+
+  /* Spectrum view */
+  #spectrum-view { align-items: center; justify-content: center; }
+  #spectrum-view svg { max-height: 100%; }
+
+  /* Dashboard view */
+  #dashboard-view { padding: 24px; gap: 20px; flex-wrap: wrap; overflow-y: auto; align-content: flex-start; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .card h3 { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .card-wide { flex: 1 1 calc(50% - 10px); min-width: 320px; }
+  .card-narrow { flex: 1 1 calc(25% - 15px); min-width: 200px; }
+  .metric { font-size: 36px; font-weight: 700; color: var(--red); }
+  .metric-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .bar-label { width: 100px; font-size: 12px; text-align: right; color: var(--muted); }
+  .bar-track { flex: 1; height: 20px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+  .bar-count { width: 30px; font-size: 12px; color: var(--muted); }
+  .rank-list { list-style: none; }
+  .rank-list li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .rank-list li:last-child { border: none; }
+
+  /* Pipeline view */
+  #pipeline-view { flex-direction: column; padding: 20px; gap: 16px; overflow-y: auto; }
+  #pipeline-view textarea { width: 100%; height: 150px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 12px; resize: vertical; }
+  #pipeline-view .btn { padding: 8px 20px; background: var(--red); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  #pipeline-view .btn:hover { background: #c53030; }
+  #pipeline-svg-container { flex: 1; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: auto; }
+
+  /* Diff view */
+  #diff-view { flex-direction: column; padding: 20px; gap: 16px; overflow-y: auto; }
+  .diff-inputs { display: flex; gap: 16px; }
+  .diff-inputs .diff-col { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .diff-inputs textarea { width: 100%; height: 120px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 12px; resize: vertical; }
+  .diff-inputs label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .diff-summary { display: flex; gap: 12px; flex-wrap: wrap; }
+  .diff-stat { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+  .diff-stat.added { background: rgba(76,175,80,0.15); color: #4CAF50; }
+  .diff-stat.removed { background: rgba(224,62,62,0.15); color: #E03E3E; }
+  .diff-stat.modified { background: rgba(255,193,7,0.15); color: #FFC107; }
+  #diff-svg-container { flex: 1; min-height: 300px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); overflow: auto; }
+
+  /* Trust legend */
+  .trust-legend { position: absolute; bottom: 16px; right: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 11px; display: none; z-index: 50; }
+  .trust-legend.visible { display: block; }
+  .trust-legend-item { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .trust-legend-item:last-child { margin-bottom: 0; }
+  .trust-dot { width: 10px; height: 10px; border-radius: 50%; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>effector<span>-graph</span></h1>
+    <div class="tabs">
+      <button class="tab active" data-view="explorer">Explorer</button>
+      <button class="tab" data-view="spectrum">Spectrum</button>
+      <button class="tab" data-view="dashboard">Dashboard</button>
+      <button class="tab" data-view="pipeline">Pipeline</button>
+      <button class="tab" data-view="diff">Diff</button>
+    </div>
+    <div style="flex:1"></div>
+    <span class="badge" id="node-count"></span>
+  </header>
+
+  <div class="controls" id="explorer-controls">
+    <input type="text" id="search" placeholder="Search effectors...">
+    <select id="filter-input"><option value="">Input: any</option></select>
+    <select id="filter-output"><option value="">Output: any</option></select>
+    <label><input type="checkbox" id="trust-toggle"> Trust overlay</label>
+  </div>
+
+  <main>
+    <!-- Explorer -->
+    <div class="view active" id="explorer-view">
+      <svg id="graph-svg"></svg>
+      <div class="detail-panel" id="detail-panel">
+        <button class="detail-close" onclick="closeDetail()">&times;</button>
+        <h3 id="detail-name"></h3>
+        <div id="detail-content"></div>
+      </div>
+      <div class="trust-legend" id="trust-legend">
+        <div class="trust-legend-item"><div class="trust-dot" style="background:#4CAF50"></div> Signed + Audited</div>
+        <div class="trust-legend-item"><div class="trust-dot" style="background:#FFC107"></div> Signed</div>
+        <div class="trust-legend-item"><div class="trust-dot" style="background:#E03E3E"></div> Unsigned</div>
+        <div class="trust-legend-item"><div class="trust-dot" style="background:#666"></div> Local</div>
+      </div>
+    </div>
+
+    <!-- Spectrum -->
+    <div class="view" id="spectrum-view"></div>
+
+    <!-- Dashboard -->
+    <div class="view" id="dashboard-view"></div>
+
+    <!-- Pipeline -->
+    <div class="view" id="pipeline-view">
+      <textarea id="pipeline-input" placeholder="Paste pipeline YAML here...
+name: my-pipeline
+steps:
+  - id: review
+    effector: code-review
+  - id: notify
+    effector: slack-notify"></textarea>
+      <button class="btn" onclick="renderPipeline()">Render Pipeline</button>
+      <div id="pipeline-svg-container"></div>
+    </div>
+
+    <!-- Diff -->
+    <div class="view" id="diff-view">
+      <div class="diff-inputs">
+        <div class="diff-col">
+          <label>Graph A (before)</label>
+          <textarea id="diff-a" placeholder="Paste graph JSON or leave empty for current graph..."></textarea>
+        </div>
+        <div class="diff-col">
+          <label>Graph B (after)</label>
+          <textarea id="diff-b" placeholder="Paste graph JSON..."></textarea>
+        </div>
+      </div>
+      <button class="btn" style="align-self:flex-start;padding:8px 20px;background:var(--red);color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;" onclick="runDiff()">Compare</button>
+      <div class="diff-summary" id="diff-summary"></div>
+      <div id="diff-svg-container"></div>
+    </div>
+  </main>
+
+  <div class="tooltip" id="tooltip" style="display:none"></div>
+
+<script>
+// ── State ──
+let graphData = null;
+let spectrumData = null;
+let statsData = null;
+let simulation = null;
+let selectedNode = null;
+let trustEnabled = false;
+
+const TYPE_COLORS = {
+  skill: '#4CAF50', extension: '#2196F3', workflow: '#FF9800',
+  workspace: '#9C27B0', bridge: '#00BCD4', prompt: '#FFC107', default: '#607D8B',
+};
+const TRUST_COLORS = { verified: '#4CAF50', signed: '#FFC107', unsigned: '#E03E3E', local: '#666' };
+
+// ── Data loading ──
+// Detect VS Code webview
+const isVSCode = typeof acquireVsCodeApi === 'function';
+let vscodeApi = null;
+if (isVSCode) {
+  vscodeApi = acquireVsCodeApi();
+  window.addEventListener('message', e => {
+    const msg = e.data;
+    if (msg.type === 'graphData') { graphData = msg.data; onGraphLoaded(); }
+    if (msg.type === 'spectrumData') { spectrumData = msg.data; }
+    if (msg.type === 'statsData') { statsData = msg.data; }
+  });
+} else {
+  Promise.all([
+    fetch('/api/graph').then(r => r.json()),
+    fetch('/api/spectrum').then(r => r.json()),
+    fetch('/api/stats').then(r => r.json()),
+  ]).then(([g, s, st]) => {
+    graphData = g;
+    spectrumData = s;
+    statsData = st;
+    onGraphLoaded();
+  });
+}
+
+function onGraphLoaded() {
+  document.getElementById('node-count').textContent = `${graphData.nodes.length} nodes, ${graphData.edges.length} edges`;
+  populateFilters();
+  initExplorer();
+}
+
+// Re-render Explorer on window resize (debounced)
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    const activeTab = document.querySelector('.tab.active')?.dataset?.view;
+    if (activeTab === 'explorer' && graphData) initExplorer();
+    if (activeTab === 'spectrum' && spectrumData) initSpectrum();
+  }, 150);
+});
+
+// ── Tab switching ──
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
+    const view = document.getElementById(tab.dataset.view + '-view');
+    view.classList.add('active');
+
+    // Controls visibility
+    document.getElementById('explorer-controls').style.display =
+      tab.dataset.view === 'explorer' ? 'flex' : 'none';
+
+    // Lazy init views
+    if (tab.dataset.view === 'explorer' && graphData) initExplorer();
+    if (tab.dataset.view === 'spectrum' && spectrumData) initSpectrum();
+    if (tab.dataset.view === 'dashboard' && statsData) initDashboard();
+  });
+});
+
+// ── Filter controls ──
+function populateFilters() {
+  const types = new Set();
+  for (const n of graphData.nodes) {
+    if (n.interface?.input) types.add(n.interface.input);
+    if (n.interface?.output) types.add(n.interface.output);
+  }
+  const sorted = [...types].sort();
+  const inputSel = document.getElementById('filter-input');
+  const outputSel = document.getElementById('filter-output');
+  for (const t of sorted) {
+    inputSel.add(new Option(`Input: ${t}`, t));
+    outputSel.add(new Option(`Output: ${t}`, t));
+  }
+}
+
+document.getElementById('search').addEventListener('input', applyFilters);
+document.getElementById('filter-input').addEventListener('change', applyFilters);
+document.getElementById('filter-output').addEventListener('change', applyFilters);
+document.getElementById('trust-toggle').addEventListener('change', e => {
+  trustEnabled = e.target.checked;
+  document.getElementById('trust-legend').classList.toggle('visible', trustEnabled);
+  updateNodeAppearance();
+});
+
+function applyFilters() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const inputFilter = document.getElementById('filter-input').value;
+  const outputFilter = document.getElementById('filter-output').value;
+
+  d3.selectAll('.node-group').each(function(d) {
+    let visible = true;
+    if (search && !d.name.toLowerCase().includes(search) && !(d.interface?.input||'').toLowerCase().includes(search) && !(d.interface?.output||'').toLowerCase().includes(search)) visible = false;
+    if (inputFilter && d.interface?.input !== inputFilter) visible = false;
+    if (outputFilter && d.interface?.output !== outputFilter) visible = false;
+
+    d3.select(this).transition().duration(200).style('opacity', visible ? 1 : 0.08);
+  });
+
+  d3.selectAll('.graph-edge').transition().duration(200).style('opacity', function(d) {
+    const srcVis = d3.select(`.node-group[data-id="${d.source.id || d.source}"]`).style('opacity');
+    const tgtVis = d3.select(`.node-group[data-id="${d.target.id || d.target}"]`).style('opacity');
+    return (parseFloat(srcVis) > 0.5 && parseFloat(tgtVis) > 0.5) ? 0.6 : 0.04;
+  });
+}
+
+// ── Explorer: D3 Force Graph ──
+function initExplorer() {
+  // Defer one frame so the view is painted before reading dimensions.
+  // Without this, clientWidth/clientHeight is 0 when Explorer is not the
+  // currently-active tab at the time data arrives.
+  requestAnimationFrame(_initExplorerNow);
+}
+function _initExplorerNow() {
+  const container = document.getElementById('explorer-view');
+  const svg = d3.select('#graph-svg');
+  svg.selectAll('*').remove();
+
+  const main = document.querySelector('main');
+  const width = container.clientWidth || main.clientWidth || 800;
+  const height = container.clientHeight || main.clientHeight || 600;
+  svg.attr('viewBox', `0 0 ${width} ${height}`);
+
+  // Defs
+  const defs = svg.append('defs');
+  defs.append('marker').attr('id', 'arrowhead').attr('viewBox', '0 0 10 10')
+    .attr('refX', 28).attr('refY', 5).attr('markerWidth', 6).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path').attr('d', 'M 0 0 L 10 5 L 0 10 z').attr('fill', '#555');
+
+  // Glow filter for selected
+  const glow = defs.append('filter').attr('id', 'glow');
+  glow.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur');
+  glow.append('feMerge').selectAll('feMergeNode').data(['blur', 'SourceGraphic'])
+    .enter().append('feMergeNode').attr('in', d => d);
+
+  const g = svg.append('g');
+
+  // Zoom
+  const zoom = d3.zoom().scaleExtent([0.2, 5]).on('zoom', e => g.attr('transform', e.transform));
+  svg.call(zoom);
+
+  // Prepare data — D3 mutates these objects
+  const nodes = graphData.nodes.map(n => ({ ...n }));
+  const edges = graphData.edges.map(e => ({ ...e }));
+
+  // Edges
+  const link = g.append('g').selectAll('line').data(edges).enter().append('line')
+    .attr('class', 'graph-edge')
+    .attr('stroke', '#444').attr('stroke-width', d => d.type === 'declared' ? 2.5 : 1.5)
+    .attr('stroke-dasharray', d => d.type === 'parallel' ? '6,4' : 'none')
+    .attr('stroke-opacity', 0.6)
+    .attr('marker-end', 'url(#arrowhead)');
+
+  // Nodes
+  const node = g.append('g').selectAll('g').data(nodes).enter().append('g')
+    .attr('class', 'node-group')
+    .attr('data-id', d => d.id)
+    .call(d3.drag()
+      .on('start', dragStart)
+      .on('drag', dragging)
+      .on('end', dragEnd));
+
+  const nodeRadius = d => {
+    const edgeCount = edges.filter(e => (e.source.id || e.source) === d.id || (e.target.id || e.target) === d.id).length;
+    return Math.max(16, Math.min(32, 14 + edgeCount * 3));
+  };
+
+  node.append('circle')
+    .attr('r', nodeRadius)
+    .attr('fill', d => TYPE_COLORS[d.type] || TYPE_COLORS.default)
+    .attr('stroke', '#fff').attr('stroke-width', 2).attr('opacity', 0.9)
+    .attr('cursor', 'pointer');
+
+  node.append('text')
+    .attr('dy', d => nodeRadius(d) + 14).attr('text-anchor', 'middle')
+    .attr('fill', '#ccc').attr('font-size', '11px').attr('font-weight', '600')
+    .text(d => d.name);
+
+  node.append('text')
+    .attr('dy', d => nodeRadius(d) + 26).attr('text-anchor', 'middle')
+    .attr('fill', '#888').attr('font-size', '9px')
+    .text(d => d.interface?.output ? `→ ${d.interface.output}` : '');
+
+  // Tooltip
+  const tooltip = document.getElementById('tooltip');
+  node.on('mouseenter', (e, d) => {
+    const trustLevel = d.trust?.audited ? 'verified' : d.trust?.signedBy ? 'signed' : 'unsigned';
+    tooltip.innerHTML = `
+      <div class="tt-name">${d.name}@${d.version}</div>
+      <div class="tt-type">${d.type}</div>
+      <div class="tt-interface">${d.interface?.input || '*'} → ${d.interface?.output || '*'}</div>
+      <div class="tt-trust" style="color:${TRUST_COLORS[trustLevel]}">${trustLevel}${d.trust?.signedBy ? ` by ${d.trust.signedBy}` : ''}</div>
+    `;
+    tooltip.style.display = 'block';
+  }).on('mousemove', e => {
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+  }).on('mouseleave', () => {
+    tooltip.style.display = 'none';
+  });
+
+  // Click — select node
+  node.on('click', (e, d) => {
+    e.stopPropagation();
+    selectedNode = d;
+    showDetail(d);
+    highlightConnected(d);
+  });
+
+  svg.on('click', () => {
+    selectedNode = null;
+    closeDetail();
+    resetHighlight();
+  });
+
+  // Force simulation
+  simulation = d3.forceSimulation(nodes)
+    .force('charge', d3.forceManyBody().strength(-300))
+    .force('link', d3.forceLink(edges).id(d => d.id).distance(120).strength(d => d.weight || 0.5))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(d => nodeRadius(d) + 8))
+    .force('x', d3.forceX(width / 2).strength(0.04))
+    .force('y', d3.forceY(height / 2).strength(0.04))
+    .on('tick', () => {
+      link
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+
+  function dragStart(e, d) { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+  function dragging(e, d) { d.fx = e.x; d.fy = e.y; }
+  function dragEnd(e, d) { if (!e.active) simulation.alphaTarget(0); if (!e.sourceEvent.shiftKey) { d.fx = null; d.fy = null; } }
+}
+
+function highlightConnected(d) {
+  const connectedIds = new Set([d.id]);
+  graphData.edges.forEach(e => {
+    const src = e.source.id || e.source;
+    const tgt = e.target.id || e.target;
+    if (src === d.id) connectedIds.add(tgt);
+    if (tgt === d.id) connectedIds.add(src);
+  });
+
+  d3.selectAll('.node-group').transition().duration(200)
+    .style('opacity', n => connectedIds.has(n.id) ? 1 : 0.12);
+  d3.selectAll('.graph-edge').transition().duration(200)
+    .style('opacity', e => {
+      const src = e.source.id || e.source;
+      const tgt = e.target.id || e.target;
+      return (src === d.id || tgt === d.id) ? 0.9 : 0.04;
+    });
+}
+
+function resetHighlight() {
+  d3.selectAll('.node-group').transition().duration(200).style('opacity', 1);
+  d3.selectAll('.graph-edge').transition().duration(200).style('opacity', 0.6);
+}
+
+function updateNodeAppearance() {
+  d3.selectAll('.node-group circle').transition().duration(300)
+    .attr('stroke', d => {
+      if (!trustEnabled) return '#fff';
+      const level = d.trust?.audited ? 'verified' : d.trust?.signedBy ? 'signed' : d.type === 'workspace' ? 'local' : 'unsigned';
+      return TRUST_COLORS[level];
+    })
+    .attr('stroke-width', d => trustEnabled ? 3 : 2);
+}
+
+function showDetail(d) {
+  const panel = document.getElementById('detail-panel');
+  document.getElementById('detail-name').textContent = `${d.name}@${d.version}`;
+  const trustLevel = d.trust?.audited ? 'Verified (signed + audited)' : d.trust?.signedBy ? `Signed by ${d.trust.signedBy}` : 'Unsigned';
+  document.getElementById('detail-content').innerHTML = `
+    <div class="field"><div class="field-label">Type</div><div class="field-value">${d.type}</div></div>
+    <div class="field"><div class="field-label">Input</div><div class="field-value">${d.interface?.input || 'any'}</div></div>
+    <div class="field"><div class="field-label">Output</div><div class="field-value">${d.interface?.output || 'any'}</div></div>
+    <div class="field"><div class="field-label">Trust</div><div class="field-value" style="color:${TRUST_COLORS[d.trust?.audited?'verified':d.trust?.signedBy?'signed':'unsigned']}">${trustLevel}</div></div>
+    <div class="field"><div class="field-label">Connections</div><div class="field-value">${graphData.edges.filter(e=>(e.source.id||e.source)===d.id||(e.target.id||e.target)===d.id).length} edges</div></div>
+  `;
+  panel.classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+// ── Spectrum: Interactive Polar Chart ──
+let spectrumInited = false;
+function initSpectrum() {
+  if (spectrumInited) return;
+  spectrumInited = true;
+
+  const container = document.getElementById('spectrum-view');
+  const size = Math.min(container.clientWidth, container.clientHeight) - 40;
+  const cx = size / 2, cy = size / 2;
+  const maxR = size / 2 - 60;
+
+  const svg = d3.select('#spectrum-view').append('svg')
+    .attr('viewBox', `0 0 ${size} ${size}`)
+    .attr('width', size).attr('height', size);
+
+  // Background
+  svg.append('circle').attr('cx', cx).attr('cy', cy).attr('r', maxR + 30)
+    .attr('fill', 'var(--surface)').attr('stroke', 'var(--border)');
+
+  // Rings
+  const ringRadii = spectrumData.rings.map(r => r.radius * maxR);
+  ringRadii.forEach((r, i) => {
+    svg.append('circle').attr('cx', cx).attr('cy', cy).attr('r', r)
+      .attr('fill', 'none').attr('stroke', '#333').attr('stroke-width', 1)
+      .attr('stroke-dasharray', i === 0 ? 'none' : '4,4');
+  });
+
+  // Ring labels
+  spectrumData.rings.forEach((ring, i) => {
+    svg.append('text').attr('x', cx + 6).attr('y', cy - ringRadii[i] + 14)
+      .attr('fill', '#555').attr('font-size', '9px').text(ring.name);
+  });
+
+  // Sector boundaries
+  const sectorArc = 360 / spectrumData.sectors.length;
+  spectrumData.boundaries.forEach(angle => {
+    const rad = (angle - 90) * Math.PI / 180;
+    svg.append('line')
+      .attr('x1', cx).attr('y1', cy)
+      .attr('x2', cx + (maxR + 20) * Math.cos(rad))
+      .attr('y2', cy + (maxR + 20) * Math.sin(rad))
+      .attr('stroke', '#333').attr('stroke-width', 1);
+  });
+
+  // Sector labels
+  spectrumData.labels.forEach(l => {
+    const rad = (l.angle - 90) * Math.PI / 180;
+    const lx = cx + (maxR + 45) * Math.cos(rad);
+    const ly = cy + (maxR + 45) * Math.sin(rad);
+    svg.append('text').attr('x', lx).attr('y', ly)
+      .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+      .attr('fill', l.color).attr('font-size', '12px').attr('font-weight', '700')
+      .text(l.name);
+  });
+
+  // Type dots
+  const dots = svg.selectAll('.spectrum-dot').data(spectrumData.types).enter().append('g')
+    .attr('class', 'spectrum-dot')
+    .attr('transform', d => `translate(${d.x * size/800},${d.y * size/800})`)
+    .style('cursor', 'pointer');
+
+  dots.append('circle')
+    .attr('r', 7).attr('fill', d => d.sectorColor).attr('opacity', 0.85)
+    .attr('stroke', '#fff').attr('stroke-width', 1.5);
+
+  dots.append('text')
+    .attr('dy', -12).attr('text-anchor', 'middle')
+    .attr('fill', '#ccc').attr('font-size', '9px')
+    .text(d => d.name);
+
+  // Hover interactions
+  const tooltip = document.getElementById('tooltip');
+  dots.on('mouseenter', (e, d) => {
+    d3.select(e.currentTarget).select('circle')
+      .transition().duration(150).attr('r', 12).attr('opacity', 1);
+    // Find effectors using this type
+    const users = graphData.nodes.filter(n =>
+      n.interface?.input === d.name || n.interface?.output === d.name
+    ).map(n => n.name);
+    tooltip.innerHTML = `
+      <div class="tt-name">${d.name}</div>
+      <div class="tt-type">${d.ring} / ${d.sector}</div>
+      ${users.length ? `<div style="margin-top:4px;color:var(--orange)">${users.join(', ')}</div>` : '<div style="color:var(--muted)">No effectors use this type</div>'}
+    `;
+    tooltip.style.display = 'block';
+  }).on('mousemove', e => {
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top = (e.clientY - 10) + 'px';
+  }).on('mouseleave', (e) => {
+    d3.select(e.currentTarget).select('circle')
+      .transition().duration(150).attr('r', 7).attr('opacity', 0.85);
+    tooltip.style.display = 'none';
+  });
+
+  // Click — highlight sector
+  dots.on('click', (e, d) => {
+    dots.selectAll('circle').transition().duration(200)
+      .attr('opacity', dd => dd.sector === d.sector ? 1 : 0.15)
+      .attr('r', dd => dd.sector === d.sector ? 10 : 5);
+
+    // Reset after second click
+    setTimeout(() => {
+      dots.selectAll('circle').transition().duration(400)
+        .attr('opacity', 0.85).attr('r', 7);
+    }, 2000);
+  });
+}
+
+// ── Dashboard ──
+let dashboardInited = false;
+function initDashboard() {
+  if (dashboardInited) return;
+  dashboardInited = true;
+
+  const container = document.getElementById('dashboard-view');
+  container.innerHTML = '';
+
+  // Metric cards
+  const metricsHtml = `
+    <div class="card card-narrow">
+      <h3>Effectors</h3>
+      <div class="metric">${statsData.nodeCount}</div>
+      <div class="metric-label">registered tools</div>
+    </div>
+    <div class="card card-narrow">
+      <h3>Edges</h3>
+      <div class="metric">${statsData.edgeCount}</div>
+      <div class="metric-label">composition links</div>
+    </div>
+    <div class="card card-narrow">
+      <h3>Type Coverage</h3>
+      <div class="metric">${statsData.typeCoverage.used}/${statsData.typeCoverage.total}</div>
+      <div class="metric-label">${(statsData.typeCoverage.percentage * 100).toFixed(0)}% of standard types used</div>
+    </div>
+    <div class="card card-narrow">
+      <h3>Trust</h3>
+      <div class="metric" style="color:${statsData.trustCoverage.unsigned > statsData.trustCoverage.signed ? 'var(--red)' : 'var(--green)'}">${((1 - statsData.trustCoverage.unsigned / Math.max(statsData.nodeCount, 1)) * 100).toFixed(0)}%</div>
+      <div class="metric-label">signed or audited</div>
+    </div>
+  `;
+  container.innerHTML = metricsHtml;
+
+  // Type distribution bar chart
+  const distCard = document.createElement('div');
+  distCard.className = 'card card-wide';
+  distCard.innerHTML = '<h3>Type Distribution by Sector</h3><div id="dist-bars"></div>';
+  container.appendChild(distCard);
+
+  const maxCount = Math.max(...Object.values(statsData.typeDistribution), 1);
+  const sectorColors = {};
+  spectrumData.sectors.forEach(s => { sectorColors[s.name] = s.color; });
+
+  const barsHtml = Object.entries(statsData.typeDistribution).map(([name, count]) => `
+    <div class="bar-row">
+      <div class="bar-label">${name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(count/maxCount)*100}%;background:${sectorColors[name]||'var(--muted)'}"></div></div>
+      <div class="bar-count">${count}</div>
+    </div>
+  `).join('');
+  document.getElementById('dist-bars').innerHTML = barsHtml;
+
+  // Most-composed list
+  const compCard = document.createElement('div');
+  compCard.className = 'card card-wide';
+  compCard.innerHTML = '<h3>Most Composed Effectors</h3>';
+  const list = document.createElement('ol');
+  list.className = 'rank-list';
+  statsData.mostComposed.forEach(m => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span>${m.name}</span><span style="color:var(--orange)">${m.totalEdges} edges (${m.inDegree} in, ${m.outDegree} out)</span>`;
+    list.appendChild(li);
+  });
+  compCard.appendChild(list);
+  container.appendChild(compCard);
+
+  // Trust coverage donut (D3)
+  const trustCard = document.createElement('div');
+  trustCard.className = 'card card-wide';
+  trustCard.innerHTML = '<h3>Trust Coverage</h3><div id="trust-donut" style="display:flex;align-items:center;justify-content:center"></div>';
+  container.appendChild(trustCard);
+
+  const trustData = [
+    { label: 'Audited', value: statsData.trustCoverage.audited, color: '#4CAF50' },
+    { label: 'Signed', value: statsData.trustCoverage.signed, color: '#FFC107' },
+    { label: 'Unsigned', value: statsData.trustCoverage.unsigned, color: '#E03E3E' },
+    { label: 'Local', value: statsData.trustCoverage.local, color: '#666' },
+  ].filter(d => d.value > 0);
+
+  if (trustData.length > 0) {
+    const donutSize = 200;
+    const donutSvg = d3.select('#trust-donut').append('svg')
+      .attr('width', donutSize + 120).attr('height', donutSize);
+    const donutG = donutSvg.append('g')
+      .attr('transform', `translate(${donutSize/2},${donutSize/2})`);
+    const arc = d3.arc().innerRadius(50).outerRadius(donutSize/2 - 10);
+    const pie = d3.pie().value(d => d.value).sort(null);
+    donutG.selectAll('path').data(pie(trustData)).enter().append('path')
+      .attr('d', arc).attr('fill', d => d.data.color).attr('stroke', 'var(--surface)').attr('stroke-width', 2);
+
+    // Legend
+    const legend = donutSvg.append('g').attr('transform', `translate(${donutSize + 10}, 40)`);
+    trustData.forEach((d, i) => {
+      const row = legend.append('g').attr('transform', `translate(0, ${i * 24})`);
+      row.append('rect').attr('width', 12).attr('height', 12).attr('rx', 2).attr('fill', d.color);
+      row.append('text').attr('x', 18).attr('y', 10).attr('fill', 'var(--text)').attr('font-size', '12px')
+        .text(`${d.label} (${d.value})`);
+    });
+  }
+
+  // Edge breakdown
+  const edgeCard = document.createElement('div');
+  edgeCard.className = 'card card-wide';
+  const eb = statsData.edgeBreakdown;
+  edgeCard.innerHTML = `<h3>Edge Types</h3>
+    <div class="bar-row"><div class="bar-label">Sequential</div><div class="bar-track"><div class="bar-fill" style="width:${eb.sequential/Math.max(statsData.edgeCount,1)*100}%;background:var(--green)"></div></div><div class="bar-count">${eb.sequential}</div></div>
+    <div class="bar-row"><div class="bar-label">Parallel</div><div class="bar-track"><div class="bar-fill" style="width:${eb.parallel/Math.max(statsData.edgeCount,1)*100}%;background:var(--cyan)"></div></div><div class="bar-count">${eb.parallel}</div></div>
+    <div class="bar-row"><div class="bar-label">Declared</div><div class="bar-track"><div class="bar-fill" style="width:${eb.declared/Math.max(statsData.edgeCount,1)*100}%;background:var(--orange)"></div></div><div class="bar-count">${eb.declared}</div></div>
+  `;
+  container.appendChild(edgeCard);
+}
+
+// ── Pipeline View ──
+function renderPipeline() {
+  const yaml = document.getElementById('pipeline-input').value.trim();
+  if (!yaml) return;
+
+  // Simple YAML-like parser for pipeline steps
+  const steps = [];
+  let currentStep = null;
+  for (const line of yaml.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('- id:')) {
+      currentStep = { id: trimmed.replace('- id:', '').trim() };
+      steps.push(currentStep);
+    } else if (trimmed.startsWith('id:')) {
+      currentStep = { id: trimmed.replace('id:', '').trim() };
+      steps.push(currentStep);
+    } else if (trimmed.startsWith('effector:') && currentStep) {
+      currentStep.effector = trimmed.replace('effector:', '').trim();
+    } else if (trimmed.startsWith('parallel-with:') && currentStep) {
+      currentStep.parallelWith = trimmed.replace('parallel-with:', '').trim();
+    }
+  }
+
+  if (steps.length === 0) return;
+
+  const container = document.getElementById('pipeline-svg-container');
+  container.innerHTML = '';
+
+  const stepW = 170, stepH = 60, gap = 80, padX = 40;
+  const totalW = padX * 2 + steps.length * stepW + (steps.length - 1) * gap;
+  const totalH = 200;
+
+  const svg = d3.select('#pipeline-svg-container').append('svg')
+    .attr('viewBox', `0 0 ${totalW} ${totalH}`).attr('width', '100%').attr('height', totalH);
+
+  // Arrow marker
+  svg.append('defs').append('marker').attr('id', 'pipe-arrow').attr('viewBox', '0 0 10 10')
+    .attr('refX', 10).attr('refY', 5).attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
+    .append('path').attr('d', 'M0 0L10 5L0 10z').attr('fill', 'var(--orange)');
+
+  steps.forEach((step, i) => {
+    const x = padX + i * (stepW + gap);
+    const y = totalH / 2 - stepH / 2;
+
+    // Look up effector to get type info
+    const eff = graphData?.nodes.find(n => n.name === step.effector);
+
+    const g = svg.append('g');
+    g.append('rect').attr('x', x).attr('y', y).attr('width', stepW).attr('height', stepH)
+      .attr('rx', 8).attr('fill', 'var(--surface2)').attr('stroke', 'var(--border)').attr('stroke-width', 1.5);
+    g.append('text').attr('x', x + stepW/2).attr('y', y + 22).attr('text-anchor', 'middle')
+      .attr('fill', 'var(--text)').attr('font-size', '13px').attr('font-weight', '700').text(step.id);
+    g.append('text').attr('x', x + stepW/2).attr('y', y + 40).attr('text-anchor', 'middle')
+      .attr('fill', 'var(--muted)').attr('font-size', '10px').text(step.effector || '');
+
+    // Type annotation
+    if (eff) {
+      g.append('text').attr('x', x + stepW/2).attr('y', y - 8).attr('text-anchor', 'middle')
+        .attr('fill', 'var(--orange)').attr('font-size', '9px')
+        .text(`${eff.interface?.input || '?'} → ${eff.interface?.output || '?'}`);
+    }
+
+    // Connector
+    if (i < steps.length - 1) {
+      svg.append('line')
+        .attr('x1', x + stepW).attr('y1', totalH/2)
+        .attr('x2', x + stepW + gap).attr('y2', totalH/2)
+        .attr('stroke', 'var(--orange)').attr('stroke-width', 2)
+        .attr('marker-end', 'url(#pipe-arrow)');
+    }
+  });
+}
+
+// ── Diff View ──
+function runDiff() {
+  const aText = document.getElementById('diff-a').value.trim();
+  const bText = document.getElementById('diff-b').value.trim();
+
+  let graphA, graphB;
+  try {
+    graphA = aText ? JSON.parse(aText) : graphData;
+  } catch { graphA = graphData; }
+  try {
+    graphB = bText ? JSON.parse(bText) : graphData;
+  } catch { graphB = graphData; }
+
+  // Client-side diff (mirrors server logic)
+  const nodesA = new Map((graphA.nodes||[]).map(n => [n.id, n]));
+  const nodesB = new Map((graphB.nodes||[]).map(n => [n.id, n]));
+
+  const added = [], removed = [], modified = [];
+  for (const [id, nb] of nodesB) {
+    const na = nodesA.get(id);
+    if (!na) { added.push(nb); continue; }
+    const changes = {};
+    if (na.type !== nb.type) changes.type = { old: na.type, new: nb.type };
+    if (na.interface?.input !== nb.interface?.input) changes.input = true;
+    if (na.interface?.output !== nb.interface?.output) changes.output = true;
+    if (Object.keys(changes).length > 0) modified.push({ ...nb, _changes: changes });
+  }
+  for (const [id, na] of nodesA) {
+    if (!nodesB.has(id)) removed.push(na);
+  }
+
+  const edgeKey = e => `${e.source.id||e.source}|${e.target.id||e.target}|${e.type}`;
+  const edgesA = new Set((graphA.edges||[]).map(edgeKey));
+  const edgesB = new Set((graphB.edges||[]).map(edgeKey));
+  const addedEdges = (graphB.edges||[]).filter(e => !edgesA.has(edgeKey(e)));
+  const removedEdges = (graphA.edges||[]).filter(e => !edgesB.has(edgeKey(e)));
+
+  // Summary
+  document.getElementById('diff-summary').innerHTML = `
+    ${added.length ? `<span class="diff-stat added">+${added.length} added</span>` : ''}
+    ${removed.length ? `<span class="diff-stat removed">-${removed.length} removed</span>` : ''}
+    ${modified.length ? `<span class="diff-stat modified">~${modified.length} modified</span>` : ''}
+    ${addedEdges.length ? `<span class="diff-stat added">+${addedEdges.length} edges</span>` : ''}
+    ${removedEdges.length ? `<span class="diff-stat removed">-${removedEdges.length} edges</span>` : ''}
+    ${!added.length && !removed.length && !modified.length ? '<span class="diff-stat" style="background:var(--surface2)">No differences</span>' : ''}
+  `;
+
+  // Render diff graph
+  const container = document.getElementById('diff-svg-container');
+  container.innerHTML = '';
+
+  const allNodes = [...(graphB.nodes||[])];
+  removed.forEach(n => { if (!allNodes.find(x => x.id === n.id)) allNodes.push(n); });
+
+  const addedIds = new Set(added.map(n => n.id));
+  const removedIds = new Set(removed.map(n => n.id));
+  const modifiedIds = new Set(modified.map(n => n.id));
+
+  const width = container.clientWidth || 800;
+  const height = 400;
+
+  const svg = d3.select('#diff-svg-container').append('svg')
+    .attr('viewBox', `0 0 ${width} ${height}`).attr('width', '100%').attr('height', height);
+
+  const g = svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => g.attr('transform', e.transform)));
+
+  const simNodes = allNodes.map(n => ({...n}));
+  const allEdges = [...(graphB.edges||[]), ...removedEdges.map(e => ({...e, _removed: true}))];
+  const simEdges = allEdges.map(e => ({...e}));
+
+  const sim = d3.forceSimulation(simNodes)
+    .force('charge', d3.forceManyBody().strength(-200))
+    .force('link', d3.forceLink(simEdges).id(d => d.id).distance(100))
+    .force('center', d3.forceCenter(width/2, height/2))
+    .force('collision', d3.forceCollide(30));
+
+  const link = g.selectAll('line').data(simEdges).enter().append('line')
+    .attr('stroke', d => d._removed ? '#E03E3E' : addedEdges.some(ae => edgeKey(ae) === edgeKey(d)) ? '#4CAF50' : '#444')
+    .attr('stroke-width', 1.5).attr('stroke-opacity', 0.6)
+    .attr('stroke-dasharray', d => d._removed ? '6,4' : 'none');
+
+  const node = g.selectAll('g.diff-node').data(simNodes).enter().append('g').attr('class', 'diff-node');
+  node.append('circle').attr('r', 20)
+    .attr('fill', d => addedIds.has(d.id) ? '#4CAF50' : removedIds.has(d.id) ? '#E03E3E' : modifiedIds.has(d.id) ? '#FFC107' : '#607D8B')
+    .attr('opacity', 0.85).attr('stroke', '#fff').attr('stroke-width', 2);
+  node.append('text').attr('dy', 34).attr('text-anchor', 'middle')
+    .attr('fill', '#ccc').attr('font-size', '10px').text(d => d.name);
+
+  sim.on('tick', () => {
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+}
+</script>
+</body>
+</html>

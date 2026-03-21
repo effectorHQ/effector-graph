@@ -1,222 +1,215 @@
-# effector-graph
+# @effectorhq/graph
 
 [![npm](https://img.shields.io/npm/v/@effectorhq/graph?color=E03E3E&logo=npm&logoColor=white)](https://www.npmjs.com/package/@effectorhq/graph)
 [![CI](https://github.com/effectorHQ/effector-graph/actions/workflows/test.yml/badge.svg)](https://github.com/effectorHQ/effector-graph/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#)
 
-**Interactive visualization of the AI capability graph.**
+Capability graph and **Spectrum** polar visualization for typed AI agent tools. Build, query, visualize, and interactively explore the composition graph that emerges from typed Effectors.
+
+## Quick Start
+
+```bash
+# Launch interactive UI (D3 force graph, Spectrum, Dashboard, Diff)
+npx @effectorhq/graph serve --registry ./skills
+# → opens http://localhost:4200
+
+# Render the full 40-type Spectrum as HTML
+npx @effectorhq/graph spectrum > spectrum.html
+
+# Highlight a specific tool's types on the Spectrum
+npx @effectorhq/graph spectrum ./my-tool > my-tool-spectrum.html
+
+# Query by interface type
+npx @effectorhq/graph query --input CodeDiff --registry ./skills
+
+# Find composition paths between two tools
+npx @effectorhq/graph path code-review@1.2.0 slack-notify@0.5.0 --registry ./skills
+
+# Find paths by type
+npx @effectorhq/graph find-path --from CodeDiff --to Notification --registry ./skills
+
+# Export graph as JSON or SVG
+npx @effectorhq/graph export --format json --registry ./skills
+npx @effectorhq/graph export --format svg --registry ./skills
+```
+
+## Spectrum
+
+The **Spectrum** is a polar chart that maps all 40 standard capability types across two dimensions:
+
+- **8 sectors** (capability domains): Code, Data, Research, Communication, Security, Infrastructure, API, Orchestration
+- **4 concentric rings** (complexity tiers):
+  - **Primitive** (inner) — String, JSON, Number, Boolean
+  - **Domain** — CodeDiff, FilePath, Repository, EnvConfig, etc.
+  - **Structured** — ReviewReport, SecurityReport, Markdown, APIResponse, etc.
+  - **Complex** (outer) — Pipeline, Workspace, MultiStepPlan, ResearchReport
+
+```bash
+# Full spectrum (all 40 types)
+npx @effectorhq/graph spectrum > spectrum.html
+
+# Highlight your tool — input/output/context types glow on the chart
+npx @effectorhq/graph spectrum ./my-tool > my-tool.html
+
+# SVG only (no HTML wrapper)
+npx @effectorhq/graph spectrum --format svg > spectrum.svg
+```
+
+When you pass a tool directory, the Spectrum highlights:
+- **Input type** with a red glow
+- **Output type** with an orange glow
+- **Context types** with a subtle glow
+
+This lets you visually position any tool within the capability landscape and spot under-served sectors.
+
+## Graph Commands
+
+### `serve` — Interactive UI
+
+```bash
+npx @effectorhq/graph serve --registry ./skills
+npx @effectorhq/graph serve --port 4200 --no-open
+```
+
+Launches a local HTTP server at `localhost:4200` with a full D3.js interactive UI:
+
+- **Explorer** — Force-directed graph; drag nodes, pan/zoom, filter by type, click to inspect
+- **Spectrum** — Interactive polar chart; hover/click types to cross-filter the Explorer
+- **Dashboard** — Type distribution, trust coverage donut, most-composed effectors ranked list
+- **Pipeline** — Upload a `pipeline.effector.yml` and see it rendered as a typed step flow
+- **Diff** — Compare two graphs or pipelines with color-coded added/removed/modified nodes and edges
+
+A demo dataset (12 effectors) loads automatically when the registry directory is empty, so `serve` works out of the box.
+
+**Web Components** — embed in any page after running `serve`:
+
+```html
+<script src="https://unpkg.com/@effectorhq/graph/src/web/widget.js"></script>
+<effector-graph registry="http://localhost:4200/api/graph" height="600" theme="dark" trust></effector-graph>
+<effector-spectrum registry="http://localhost:4200/api/spectrum" highlight="CodeDiff,ReviewReport" height="400"></effector-spectrum>
+```
+
+**VS Code Extension** — install from `vscode/` to show the graph inline while editing Effectors.
 
 ---
 
-## What This Is
-
-Every typed Effector declares an interface: what it accepts, what it produces, what it composes with. When you collect thousands of typed Effectors, a structure emerges — a **capability graph** where nodes are capabilities and edges are composition relationships.
-
-`effector-graph` makes this graph visible, navigable, and interactive.
-
-```
-                    ┌─────────────┐
-                    │  CodeDiff   │
-                    └──────┬──────┘
-                           │ input
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-      ┌──────────┐  ┌───────────┐  ┌────────┐
-      │code-review│  │security-  │  │  lint  │
-      │  @1.2.0  │  │scan @2.0  │  │ @3.1.0 │
-      └────┬─────┘  └─────┬─────┘  └───┬────┘
-           │              │             │
-    ReviewReport    SecurityReport   LintReport
-           │              │             │
-           └──────────────┼─────────────┘
-                          ▼
-                 ┌────────────────┐
-                 │aggregate-report│
-                 │    @1.0.0     │
-                 └───────┬───────┘
-                         │
-                  AggregateReport
-                         │
-                         ▼
-                 ┌───────────────┐
-                 │  slack-notify │
-                 │    @0.5.0    │
-                 └───────────────┘
-```
-
-This isn't a static diagram. It's a live, queryable visualization of what your agents **can** do and how their capabilities connect.
-
-## Install
+### `query` — Search by interface type
 
 ```bash
-npm install @effectorhq/graph
+npx @effectorhq/graph query --input CodeDiff --registry ./skills
+npx @effectorhq/graph query --output ReviewReport --registry ./skills
 ```
 
-This package currently depends on `effector-types` (stdlib) for the type catalog.
+Finds all Effectors in a registry directory that match the given input/output types.
 
-You can also use the CLI directly without installing globally:
+### `path` — Find composition paths
 
 ```bash
-npx @effectorhq/graph ./skills
+npx @effectorhq/graph path code-review@1.2.0 slack-notify@0.5.0 --registry ./skills
 ```
 
-See the published package on npm: **https://www.npmjs.com/package/@effectorhq/graph**
+Discovers all valid composition chains between two named Effectors using BFS traversal.
 
-## Why Visualize the Capability Graph
-
-The capability graph is the emergent structure that arises when AI agent tools get typed interfaces. It's important for three reasons:
-
-**1. Discovery.** Developers building agent workflows need to find capabilities that fit their pipeline. A visual graph lets you trace paths: "I have a CodeDiff — what can I do with it? Where does it lead?" You explore by following typed edges, not by searching keywords.
-
-**2. Understanding.** Multi-agent systems are complex. A team deploying a 12-step agent workflow needs to see the full composition — types flowing between steps, parallel branches, conditional paths, fallback routes. Without visualization, composition errors hide until runtime.
-
-**3. Trust.** The graph reveals the supply chain. Which Effectors are signed? Which have audit reports? Where are the unsigned community dependencies? Visual trust indicators make security posture legible at a glance.
-
-Research supports this. The GAP framework (NeurIPS 2025, [arXiv:2510.25320](https://arxiv.org/abs/2510.25320)) showed that explicit dependency graphs outperform sequential agent planning. The MCP-Zero paper ([arXiv:2506.01056](https://arxiv.org/abs/2506.01056)) found that agents don't explore available tools — they need mechanisms for active discovery. `effector-graph` provides the human-facing interface for both.
-
-## Features
-
-### Interactive Web UI
+### `find-path` — Find paths by type
 
 ```bash
-npx @effectorhq/graph serve
-
-  ✓ Loaded 847 typed Effectors from registry
-  ✓ Graph: 847 nodes, 3,241 composition edges
-  ✓ Serving at http://localhost:4200
+npx @effectorhq/graph find-path --from CodeDiff --to Notification --registry ./skills
 ```
 
-Opens a browser-based visualization with:
+Like `path`, but searches by type signature instead of tool name. Finds all Effector chains where the first tool accepts `--from` type and the last produces `--to` type.
 
-- **Force-directed graph layout** — capabilities cluster by type affinity
-- **Type-based filtering** — show only Effectors matching a type signature
-- **Path tracing** — highlight all valid composition paths between two Effectors
-- **Trust overlay** — color nodes by signing status (signed/unsigned/audited)
-- **Cost heatmap** — visualize cost distribution across a pipeline
-- **Search** — find Effectors by type, name, or description
-
-### Pipeline Visualization
-
-Render a specific pipeline from `effector-compose`:
+### `render` — Pipeline SVG
 
 ```bash
-npx @effectorhq/graph render ./pipeline.effector.yml
-# Produces: ./pipeline.effector.svg
+npx @effectorhq/graph render ./pipeline.effector.yml --registry ./skills
 ```
 
-### Embeddable Widget
+Renders a capability graph as a static SVG file.
 
-Drop the graph into any web page:
-
-```html
-<script src="https://unpkg.com/effector-graph/widget.js"></script>
-<effector-graph
-  registry="https://registry.effectorhq.dev"
-  filter="input:CodeDiff"
-  height="600px"
-/>
-```
-
-### CLI Exploration
-
-For terminal-first workflows:
+### `export` — Export graph data
 
 ```bash
-# Show all Effectors that accept CodeDiff
-npx @effectorhq/graph query --input CodeDiff
-
-# Show composition paths from code-review to slack-notify
-npx @effectorhq/graph path code-review@1.2.0 slack-notify@0.5.0
-
-# Export the full graph as JSON (for custom visualization)
-npx @effectorhq/graph export --format json > graph.json
+npx @effectorhq/graph export --format json --registry ./skills > graph.json
+npx @effectorhq/graph export --format svg --registry ./skills > graph.svg
 ```
 
-## Visualization Modes
+## Programmatic API
 
-### Capability Explorer
+```js
+import { buildGraph, findPaths, findPathByType, queryByType } from '@effectorhq/graph';
+import { diffGraphs, computeStats } from '@effectorhq/graph';
+import { renderSVG } from '@effectorhq/graph/renderers/svg';
+import { renderSpectrum, wrapInHTML } from '@effectorhq/graph/renderers/spectrum';
+import { SECTORS, RINGS, getTypeRing, getTypeSector, getAllTypes } from '@effectorhq/graph/spectrum/sectors';
+import { layoutTypes, polarToCartesian } from '@effectorhq/graph/spectrum/layout';
+import { loadRegistry } from '@effectorhq/graph/registry';
 
-The default mode. Shows the full capability graph with type-colored nodes:
+// Build graph from a directory of Effector packages
+const effectors = loadRegistry('./skills');
+const graph = buildGraph(effectors);
 
-- 🟢 **Signed & audited** — verified by effector-audit
-- 🟡 **Signed, not audited** — identity verified, content not scanned
-- 🔴 **Unsigned** — no provenance information
-- ⬜ **Local** — workspace-level Effectors, not published
+// Query
+const codeTools = queryByType(graph, { input: 'CodeDiff' });
+const paths = findPathByType(graph, 'CodeDiff', 'Notification');
 
-Edges represent composition compatibility (structural subtype matching). Edge thickness indicates how many real pipelines use that composition.
+// Diff two graphs
+const diff = diffGraphs(graphA, graphB);
+// → { added, removed, modified, addedEdges, removedEdges }
 
-### Pipeline View
+// Dashboard statistics
+const stats = computeStats(graph);
+// → { typeDistribution, mostComposed, trustCoverage, typeCoverage, edgeBreakdown }
 
-Focused view for a single pipeline. Shows:
-- Step sequence with type annotations on each edge
-- Parallel branches rendered as swim lanes
-- Conditional branches rendered as decision diamonds
-- Cost per step and cumulative cost
-- Permission aggregation across the pipeline
-
-### Diff View
-
-Compare two versions of a pipeline or two competing pipeline designs:
-
-```bash
-npx @effectorhq/graph diff pipeline-v1.yml pipeline-v2.yml
+// Render static SVG/HTML
+const svg = renderSpectrum({ highlight: { input: 'CodeDiff', output: 'ReviewReport' } });
+const html = wrapInHTML(svg);
 ```
-
-Highlights: added steps, removed steps, changed types, cost difference, permission changes.
-
-### Registry Dashboard
-
-Overview of a capability registry:
-
-```bash
-npx @effectorhq/graph dashboard --registry https://registry.effectorhq.dev
-```
-
-Shows: type distribution, most-composed Effectors, trust coverage, cost distribution, growth trends.
 
 ## Architecture
 
 ```
-effector-graph
-├── core/              # Graph data model and algorithms
-│   ├── graph.js       # Capability graph construction from typed Effectors
-│   ├── layout.js      # Force-directed and hierarchical layout algorithms
-│   ├── query.js       # Type-based graph queries
-│   └── path.js        # Composition path finding (typed BFS/DFS)
-├── renderers/         # Output formats
-│   ├── svg.js         # Static SVG rendering
-│   ├── html.js        # Interactive HTML (D3.js-based)
-│   ├── terminal.js    # ASCII art for CLI
-│   └── json.js        # Machine-readable graph export
-├── web/               # Browser-based UI
-│   ├── app.jsx        # React application
-│   ├── components/    # Explorer, Pipeline, Diff, Dashboard views
-│   └── widget.js      # Embeddable web component
-├── cli/               # Command-line interface
-│   └── index.js       # CLI commands (serve, render, query, path, export)
-└── integrations/      # IDE and tool integrations
-    ├── vscode.js      # VS Code extension API
-    └── compose.js     # Integration with effector-compose
+effector-graph/
+  bin/effector-graph.js       CLI entry point (serve, spectrum, query, path, find-path, render, export)
+  src/
+    index.js                  Barrel exports (graph, diff, stats)
+    registry.js               Load effector.toml files from a directory tree
+    core/
+      graph.js                Graph construction, BFS path finding, type-based queries
+      diff.js                 diffGraphs() — added/removed/modified nodes and edges
+      stats.js                computeStats() — type distribution, trust coverage, most-composed
+      type-checker.js         Structural subtype checking (backed by @effectorhq/types)
+    renderers/
+      svg.js                  Static SVG graph renderer
+      spectrum.js             Polar SVG spectrum renderer (40 types, 8 sectors, 4 rings)
+    spectrum/
+      sectors.js              8 sector definitions + type-to-ring/sector mapping
+      layout.js               Polar coordinate math for Spectrum positioning
+    web/
+      server.js               HTTP server (node:http) — serves app.html + REST API
+      app.html                Single-file interactive UI (D3 force graph, Spectrum, Dashboard, Pipeline, Diff)
+      widget.js               Web Components: <effector-graph> and <effector-spectrum> (Shadow DOM)
+  vscode/
+    package.json              VS Code extension manifest
+    extension.js              Webview panel — scans workspace effector.toml, live file watching
+  tests/
+    *.test.js                 43 tests (node:test, zero dependencies)
 ```
 
-## Roadmap
+## Options
 
-- [x] **v0.1** — CLI graph queries (`query`, `path`, `export`), registry loader, type-checker backed by effector-types/types.json
-- [ ] **v0.2** — Interactive web UI with force-directed layout
-- [ ] **v0.3** — Trust overlay, cost heatmap, permission aggregation
-- [ ] **v0.4** — Embeddable widget, registry dashboard
-- [ ] **v0.5** — VS Code extension, IDE integration
-- [ ] **v1.0** — Production-ready visualization platform
-
-## Contributing
-
-Visualization needs design sensibility. We especially need:
-
-- **UX design** — The graph should be beautiful and intuitive, not just technically correct
-- **Performance** — Rendering 10,000+ nodes smoothly requires WebGL or clever D3 optimization
-- **Accessibility** — Screen reader support, color-blind safe palettes, keyboard navigation
-- **Real-world testing** — Use the graph with your actual agent workflows and tell us what's missing
+```
+-r, --registry <dir>   Directory to scan for effector.toml files (default: .)
+    --port <n>         Port for the serve command (default: 4200)
+    --no-open          Do not auto-open browser when serving
+    --input <type>     Filter by input type
+    --output <type>    Filter by output type
+    --from <type>      Source type for find-path
+    --to <type>        Target type for find-path
+-f, --format <fmt>     Output format: svg, html, json (default: svg)
+    --trust            Show trust overlay (signed/unsigned/audited)
+-h, --help             Show help
+-v, --version          Show version
+```
 
 ## License
 
@@ -224,4 +217,4 @@ Visualization needs design sensibility. We especially need:
 
 ---
 
-<sub>Part of the <a href="https://github.com/effectorHQ">effectorHQ</a> studio. We build hands for AI that moves first.</sub>
+<sub>Part of <a href="https://github.com/effectorHQ">effectorHQ</a>. We build hands for AI that moves first.</sub>

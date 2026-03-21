@@ -1,0 +1,15 @@
+[effector]
+name    = "github-pr-fetch"
+version = "1.0.0"
+type    = "skill"
+description = "Fetch a GitHub pull request diff and metadata"
+tags    = ["github", "pull-request", "code"]
+
+[effector.interface]
+input   = "String"        # PR URL or number
+output  = "CodeDiff"      # Unified diff + metadata
+context = ["GenericAPIKey"] # GITHUB_TOKEN
+
+[effector.permissions]
+network  = true
+env-read = ["GITHUB_TOKEN"]

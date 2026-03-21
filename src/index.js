@@ -24,3 +24,5 @@ export { renderSpectrum, wrapInHTML } from './renderers/spectrum.js';
 export { SECTORS, RINGS, getTypeRing, getTypeSector, getAllTypes } from './spectrum/sectors.js';
 export { layoutTypes, polarToCartesian } from './spectrum/layout.js';
 export { loadRegistry } from './registry.js';
+export { diffGraphs } from './core/diff.js';
+export { computeStats } from './core/stats.js';

@@ -20,8 +20,8 @@
     "graph",
     "capability-graph",
     "ai-agent",
-    "d3",
-    "interactive"
+    "spectrum",
+    "polar-chart"
   ],
   "author": "effectorHQ Contributors",
   "license": "MIT",
@@ -36,6 +36,7 @@
   "files": [
     "src/",
     "bin/",
+    "vscode/",
     "README.md",
     "LICENSE"
   ],

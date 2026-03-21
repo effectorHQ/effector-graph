@@ -1,0 +1,15 @@
+[effector]
+name    = "slack-channel-post"
+version = "0.4.0"
+type    = "extension"
+description = "Post any Summary to a Slack channel as a plain message"
+tags    = ["slack", "messaging", "communication"]
+
+[effector.interface]
+input   = "Summary"
+output  = "SlackMessage"
+context = ["GenericAPIKey"]
+
+[effector.permissions]
+network  = true
+env-read = ["SLACK_BOT_TOKEN", "SLACK_CHANNEL_ID"]

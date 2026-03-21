@@ -1,0 +1,33 @@
+{
+  "name": "effector-graph-vscode",
+  "displayName": "Effector Graph",
+  "description": "Interactive capability graph visualization for typed AI agent tools",
+  "version": "0.1.0",
+  "publisher": "effectorhq",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Visualization", "Other"],
+  "keywords": ["effector", "ai-agent", "capability-graph", "visualization"],
+  "activationEvents": [
+    "workspaceContains:**/effector.toml"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "effectorGraph.show",
+        "title": "Effector: Show Capability Graph"
+      },
+      {
+        "command": "effectorGraph.showSpectrum",
+        "title": "Effector: Show Type Spectrum"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/effectorHQ/effector-graph.git"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,18 @@
+[effector]
+name    = "report-summarizer"
+version = "1.0.0"
+type    = "skill"
+description = "Distill a ReviewReport into a concise human-readable summary"
+tags    = ["summarization", "reports", "communication"]
+
+[effector.interface]
+input  = "ReviewReport"
+output = "Summary"
+
+[effector.permissions]
+network    = false
+subprocess = false
+
+[trust]
+signedBy = "effectorhq"
+audited  = true

@@ -1,0 +1,18 @@
+[effector]
+name    = "code-review"
+version = "1.2.0"
+type    = "skill"
+description = "Review code diffs and produce structured review reports"
+tags    = ["code-review", "quality", "analysis"]
+
+[effector.interface]
+input  = "CodeDiff"
+output = "ReviewReport"
+
+[effector.permissions]
+network    = false
+subprocess = false
+
+[trust]
+signedBy = "effectorhq"
+audited  = true

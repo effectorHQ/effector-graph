@@ -1,0 +1,14 @@
+[effector]
+name    = "security-scan"
+version = "1.1.0"
+type    = "skill"
+description = "Scan a code diff for secrets, vulnerable dependencies, and unsafe patterns"
+tags    = ["security", "secrets", "vulnerability"]
+
+[effector.interface]
+input  = "CodeDiff"
+output = "SecurityReport"
+
+[effector.permissions]
+network    = false
+subprocess = true

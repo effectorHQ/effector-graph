@@ -30,6 +30,8 @@ const { values, positionals } = parseArgs({
     trust: { type: 'boolean', default: false },
     from: { type: 'string' },
     to: { type: 'string' },
+    port: { type: 'string', short: 'p', default: '4200' },
+    'no-open': { type: 'boolean', default: false },
   },
 });
 
@@ -45,7 +47,7 @@ effector-graph — Capability graph visualization
 
 Commands:
   spectrum [dir]            Render capability spectrum (all 36+ types)
-  serve                     Launch interactive web UI (coming in v0.2)
+  serve                     Launch interactive web UI (D3.js, dashboard, diff)
   render <pipeline.yml>     Render pipeline as SVG/PNG/HTML
   query                     Search by interface type (--input, --output)
   path <source> <target>    Find composition paths between Effectors
@@ -58,6 +60,8 @@ Options:
   --output <type>       Filter by output type
   -f, --format <fmt>    Output format: svg, png, html, json (default: svg)
   --trust               Show trust overlay (signed/unsigned/audited)
+  -p, --port <port>     Port for serve command (default: 4200)
+  --no-open             Don't auto-open browser
   -h, --help            Show this help
   -v, --version         Show version
 `);
@@ -127,10 +131,22 @@ async function main() {
       process.exit(0);
     }
 
-    case 'serve':
-      console.log('Interactive web UI is coming in v0.2.');
-      console.log('For now, use "render" to generate static visualizations.');
-      process.exit(0);
+    case 'serve': {
+      const { createServer } = await import('../src/web/server.js');
+      const { platform } = await import('node:os');
+      const { exec } = await import('node:child_process');
+      const port = parseInt(values.port || '4200', 10);
+      const server = createServer({ registry: values.registry });
+      server.listen(port, () => {
+        console.log(`\n  effector-graph interactive UI`);
+        console.log(`  http://localhost:${port}\n`);
+        if (!values['no-open']) {
+          const cmd = platform() === 'darwin' ? 'open' : platform() === 'win32' ? 'start' : 'xdg-open';
+          exec(`${cmd} http://localhost:${port}`);
+        }
+      });
+      break;
+    }
 
     case 'render': {
       const pipelinePath = args[0];

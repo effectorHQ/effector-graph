@@ -1,0 +1,15 @@
+[effector]
+name    = "slack-notify"
+version = "0.5.0"
+type    = "extension"
+description = "Post a ReviewReport as a formatted Slack message to a channel"
+tags    = ["slack", "notifications", "communication"]
+
+[effector.interface]
+input   = "ReviewReport"
+output  = "OperationStatus"
+context = ["GenericAPIKey"] # SLACK_BOT_TOKEN
+
+[effector.permissions]
+network  = true
+env-read = ["SLACK_BOT_TOKEN", "SLACK_CHANNEL_ID"]

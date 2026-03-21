@@ -1,0 +1,17 @@
+[effector]
+name    = "lint-checker"
+version = "0.9.0"
+type    = "skill"
+description = "Run static analysis and linting rules against a code diff"
+tags    = ["lint", "static-analysis", "quality"]
+
+[effector.interface]
+input  = "CodeDiff"
+output = "LintReport"
+
+[effector.permissions]
+network    = false
+subprocess = true
+
+[trust]
+signedBy = "effectorhq"

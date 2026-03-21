@@ -1,0 +1,15 @@
+[effector]
+name    = "deploy-trigger"
+version = "1.0.0"
+type    = "workflow"
+description = "Trigger a deployment if a ReviewReport passes quality gates"
+tags    = ["deploy", "ci-cd", "workflow"]
+
+[effector.interface]
+input   = "ReviewReport"
+output  = "DeploymentStatus"
+context = ["GenericAPIKey"] # CI_TOKEN
+
+[effector.permissions]
+network  = true
+env-read = ["CI_TOKEN", "DEPLOY_ENV"]
