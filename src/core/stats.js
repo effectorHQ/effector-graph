@@ -60,7 +60,7 @@ export function computeStats(graph) {
     }
   }
 
-  // Type coverage — how many of the 36 standard types are used
+  // Type coverage — how many of the 40 standard types are used
   const allTypes = getAllTypes();
   const usedTypes = new Set();
   for (const node of nodes) {
