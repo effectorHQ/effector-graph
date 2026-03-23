@@ -38,7 +38,7 @@
     "bin/",
     "vscode/",
     "README.md",
-    "LICENSE"
+    "LICENSE.md"
   ],
   "engines": {
     "node": ">=18.0.0"
