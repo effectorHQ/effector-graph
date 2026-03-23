@@ -24,7 +24,7 @@
     "polar-chart"
   ],
   "author": "effectorHQ Contributors",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/effectorHQ/effector-graph.git"

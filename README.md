@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@effectorhq/graph?color=E03E3E&logo=npm&logoColor=white)](https://www.npmjs.com/package/@effectorhq/graph)
 [![CI](https://github.com/effectorHQ/effector-graph/actions/workflows/test.yml/badge.svg)](https://github.com/effectorHQ/effector-graph/actions/workflows/test.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache-2.0-blue.svg)](LICENSE)
 
 Capability graph and **Spectrum** polar visualization for typed AI agent tools. Build, query, visualize, and interactively explore the composition graph that emerges from typed Effectors.
 
@@ -213,8 +213,9 @@ effector-graph/
 
 ## License
 
-[MIT](./LICENSE)
+[Apache-2.0](./LICENSE)
 
+This project is currently licensed under the Apache 2.0 License 。
 ---
 
 <sub>Part of <a href="https://github.com/effectorHQ">effectorHQ</a>. We build hands for AI that moves first.</sub>

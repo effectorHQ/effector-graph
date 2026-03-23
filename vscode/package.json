@@ -7,8 +7,16 @@
   "engines": {
     "vscode": "^1.80.0"
   },
-  "categories": ["Visualization", "Other"],
-  "keywords": ["effector", "ai-agent", "capability-graph", "visualization"],
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "effector",
+    "ai-agent",
+    "capability-graph",
+    "visualization"
+  ],
   "activationEvents": [
     "workspaceContains:**/effector.toml"
   ],
@@ -29,5 +37,5 @@
     "type": "git",
     "url": "https://github.com/effectorHQ/effector-graph.git"
   },
-  "license": "MIT"
+  "license": "Apache-2.0"
 }

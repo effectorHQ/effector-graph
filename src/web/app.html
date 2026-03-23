@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>effector-graph | Capability Graph Explorer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦞</text></svg>">
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   :root {
     --bg: #0F0F0F; --surface: #1A1A1A; --surface2: #222; --border: #2A2A2A;
-    --red: #E03E3E; --orange: #F27A3A; --text: #F5F0EB; --muted: #888;
-    --green: #4CAF50; --blue: #2196F3; --yellow: #FFC107; --purple: #9C27B0;
+    --red: #E03E3E; --orange: #F27A3A; --text: #F5F0EB; --text2: #9CA3AF; --text3: #6B7280; --muted: #888;
+    --green: #4ade80; --blue: #60a5fa; --amber: #fbbf24; --purple: #a78bfa;
     --cyan: #22D3EE; --pink: #F472B6;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -17,8 +18,8 @@
 
   /* Header */
   header { display: flex; align-items: center; gap: 16px; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-  header h1 { font-size: 16px; font-weight: 700; color: var(--red); }
-  header h1 span { color: var(--orange); }
+  header h1 { font-size: 16px; font-weight: 700; color: var(--text); }
+  header h1 span { color: var(--red); }
 
   /* Tabs */
   .tabs { display: flex; gap: 2px; margin-left: 24px; }
@@ -93,9 +94,9 @@
   .diff-inputs label { font-size: 12px; color: var(--muted); font-weight: 600; }
   .diff-summary { display: flex; gap: 12px; flex-wrap: wrap; }
   .diff-stat { padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
-  .diff-stat.added { background: rgba(76,175,80,0.15); color: #4CAF50; }
+  .diff-stat.added { background: rgba(74,222,128,0.15); color: #4ade80; }
   .diff-stat.removed { background: rgba(224,62,62,0.15); color: #E03E3E; }
-  .diff-stat.modified { background: rgba(255,193,7,0.15); color: #FFC107; }
+  .diff-stat.modified { background: rgba(251,191,36,0.15); color: #fbbf24; }
   #diff-svg-container { flex: 1; min-height: 300px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); overflow: auto; }
 
   /* Trust legend */
@@ -108,7 +109,7 @@
 </head>
 <body>
   <header>
-    <h1>effector<span>-graph</span></h1>
+    <h1><span>effector</span>-graph</h1>
     <div class="tabs">
       <button class="tab active" data-view="explorer">Explorer</button>
       <button class="tab" data-view="spectrum">Spectrum</button>
@@ -137,8 +138,8 @@
         <div id="detail-content"></div>
       </div>
       <div class="trust-legend" id="trust-legend">
-        <div class="trust-legend-item"><div class="trust-dot" style="background:#4CAF50"></div> Signed + Audited</div>
-        <div class="trust-legend-item"><div class="trust-dot" style="background:#FFC107"></div> Signed</div>
+        <div class="trust-legend-item"><div class="trust-dot" style="background:#4ade80"></div> Signed + Audited</div>
+        <div class="trust-legend-item"><div class="trust-dot" style="background:#fbbf24"></div> Signed</div>
         <div class="trust-legend-item"><div class="trust-dot" style="background:#E03E3E"></div> Unsigned</div>
         <div class="trust-legend-item"><div class="trust-dot" style="background:#666"></div> Local</div>
       </div>
@@ -193,10 +194,10 @@ let selectedNode = null;
 let trustEnabled = false;
 
 const TYPE_COLORS = {
-  skill: '#4CAF50', extension: '#2196F3', workflow: '#FF9800',
-  workspace: '#9C27B0', bridge: '#00BCD4', prompt: '#FFC107', default: '#607D8B',
+  skill: '#4ade80', extension: '#60a5fa', workflow: '#FF9800',
+  workspace: '#a78bfa', bridge: '#00BCD4', prompt: '#fbbf24', default: '#607D8B',
 };
-const TRUST_COLORS = { verified: '#4CAF50', signed: '#FFC107', unsigned: '#E03E3E', local: '#666' };
+const TRUST_COLORS = { verified: '#4ade80', signed: '#fbbf24', unsigned: '#E03E3E', local: '#666' };
 
 // ── Data loading ──
 // Detect VS Code webview
@@ -670,8 +671,8 @@ function initDashboard() {
   container.appendChild(trustCard);
 
   const trustData = [
-    { label: 'Audited', value: statsData.trustCoverage.audited, color: '#4CAF50' },
-    { label: 'Signed', value: statsData.trustCoverage.signed, color: '#FFC107' },
+    { label: 'Audited', value: statsData.trustCoverage.audited, color: '#4ade80' },
+    { label: 'Signed', value: statsData.trustCoverage.signed, color: '#fbbf24' },
     { label: 'Unsigned', value: statsData.trustCoverage.unsigned, color: '#E03E3E' },
     { label: 'Local', value: statsData.trustCoverage.local, color: '#666' },
   ].filter(d => d.value > 0);
@@ -860,13 +861,13 @@ function runDiff() {
     .force('collision', d3.forceCollide(30));
 
   const link = g.selectAll('line').data(simEdges).enter().append('line')
-    .attr('stroke', d => d._removed ? '#E03E3E' : addedEdges.some(ae => edgeKey(ae) === edgeKey(d)) ? '#4CAF50' : '#444')
+    .attr('stroke', d => d._removed ? '#E03E3E' : addedEdges.some(ae => edgeKey(ae) === edgeKey(d)) ? '#4ade80' : '#444')
     .attr('stroke-width', 1.5).attr('stroke-opacity', 0.6)
     .attr('stroke-dasharray', d => d._removed ? '6,4' : 'none');
 
   const node = g.selectAll('g.diff-node').data(simNodes).enter().append('g').attr('class', 'diff-node');
   node.append('circle').attr('r', 20)
-    .attr('fill', d => addedIds.has(d.id) ? '#4CAF50' : removedIds.has(d.id) ? '#E03E3E' : modifiedIds.has(d.id) ? '#FFC107' : '#607D8B')
+    .attr('fill', d => addedIds.has(d.id) ? '#4ade80' : removedIds.has(d.id) ? '#E03E3E' : modifiedIds.has(d.id) ? '#fbbf24' : '#607D8B')
     .attr('opacity', 0.85).attr('stroke', '#fff').attr('stroke-width', 2);
   node.append('text').attr('dy', 34).attr('text-anchor', 'middle')
     .attr('fill', '#ccc').attr('font-size', '10px').text(d => d.name);
